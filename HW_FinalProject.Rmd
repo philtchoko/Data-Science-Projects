@@ -1,0 +1,218 @@
+---
+title: "Final Project"
+author: "GWU DATS 1001 Data Science for ALL - Karim Mattar, Mariana Sousa and Philippe Tchokokam"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r init, include=FALSE}
+# some of common options (and the defaults) are: 
+# include=T, eval=T, echo=T, results='hide'/'asis'/'markup',..., collapse=F, warning=T, message=T, error=T, cache=T, fig.width=6, fig.height=4, fig.dim=c(6,4) #inches, fig.align='left'/'center','right', 
+library(ezids)
+library(corrplot)
+# knitr::opts_chunk$set(warning = F, results = "markup", message = F)
+knitr::opts_chunk$set(warning = F, results = "hide", message = F)
+options(scientific=T, digits = 3) 
+# options(scipen=9, digits = 3) 
+# ‘scipen’: integer. A penalty to be applied when deciding to print numeric values in fixed or exponential notation.  Positive values bias towards fixed and negative towards scientific notation: fixed notation will be preferred unless it is more than ‘scipen’ digits wider.
+# use scipen=999 to prevent scientific notation at all times
+```
+
+# Student Alcohol Consumption
+
+
+## Data overview
+
+
+``` {r readData}
+
+alc_consump <- data.frame(read.csv("student-mat.csv"))
+```
+
+In this project, we analyzed an **alcohol consumption dataset** of secondary school students from two schools in Portugal that relates some factors with their grades in Portuguese and Mathematics. It has **`r nrow(alc_consump)`** rows.
+The `variables` in the dataset are:  
+
+* `school` - student's school (binary: 'GP' - Gabriel Pereira or 'MS' - Mousinho da Silveira)
+* `sex` - student's sex (binary: 'F' - female or 'M' - male)
+* `age` - student's age (numeric: from 15 to 22)
+* `address` - student's home address type (binary: 'U' - urban or 'R' - rural)
+* `famsize` - family size (binary: 'LE3' - less or equal to 3 or 'GT3' - greater than 3)
+* `Pstatus` - parent's cohabitation status (binary: 'T' - living together or 'A' - apart)
+* `Medu` - mother's education (numeric: 0 - none, 1 - primary education (4th grade), 2 – 5th to 9th grade, 3 – secondary education or 4 – higher education)
+* `Fedu` - father's education (numeric: 0 - none, 1 - primary education (4th grade), 2 – 5th to 9th grade, 3 – secondary education or 4 – higher education)
+* `Mjob` - mother's job (nominal: 'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other')
+* `Fjob` - father's job (nominal: 'teacher', 'health' care related, civil 'services' (e.g. administrative or police), 'at_home' or 'other')
+* `reason` - reason to choose this school (nominal: close to 'home', school 'reputation', 'course' preference or 'other')
+* `guardian` - student's guardian (nominal: 'mother', 'father' or 'other')
+* `traveltime` - home to school travel time (numeric: 1 - <15 min., 2 - 15 to 30 min., 3 - 30 min. to 1 hour, or 4 - >1 hour)
+* `studytime` - weekly study time (numeric: 1 - <2 hours, 2 - 2 to 5 hours, 3 - 5 to 10 hours, or 4 - >10 hours)
+* `failures` - number of past class failures (numeric: n if 1<=n<3, else 4)
+* `schoolsup` - extra educational support (binary: yes or no)
+* `famsup` - family educational support (binary: yes or no)
+* `paid` - extra paid classes within the course subject (Math or Portuguese) (binary: yes or no)
+* `activities` - extra-curricular activities (binary: yes or no)
+* `nursery` - attended nursery school (binary: yes or no)
+* `higher` - wants to take higher education (binary: yes or no)
+* `internet` - Internet access at home (binary: yes or no)
+* `romantic` - with a romantic relationship (binary: yes or no)
+* `famrel` - quality of family relationships (numeric: from 1 - very bad to 5 - excellent)
+* `freetime` - free time after school (numeric: from 1 - very low to 5 - very high)
+* `goout` - going out with friends (numeric: from 1 - very low to 5 - very high)
+* `Dalc` - workday alcohol consumption (numeric: from 1 - very low to 5 - very high)
+* `Walc` - weekend alcohol consumption (numeric: from 1 - very low to 5 - very high)
+* `health` - current health status (numeric: from 1 - very bad to 5 - very good)
+* `absences` - number of school absences (numeric: from 0 to 93)
+
+
+## SMART Question
+When building our SMART question, we aimed to form one that would emphasize how the analysis of this data can be used for social good and bettering the community that these students are a part of. Therefore, the question we decided best fit our interests is: **Which variables have the largest impact on the alcohol consumption habits of secondary schoolers, and how can we use these to better their habits within the next 5 years?** As well as: **Do participants that go out very often have higher weekend alcohol consumption as well as higher workday alcohol consumption levels?**
+
+Moving forward, when building our hypothesis, our goal was to analyze what variables would most affect workday alcohol consumption. We assumed that participants that go out more often and drink on the weekends more frequently would have higher workday alcohol consumption levels. 
+
+
+## Analysis
+### *goout and Walc* 
+First, we analyzed if there was a correlation between the **frequency of going out (goout)** and the **frequency of weekend alcohol consumption (Walc)**. We desired to investigate if participants that went out very often (level 5) would have higher weekend alcohol consumption. Since we were analyzing two categorical variables, we performed a chi-squared test.
+
+```{r question1, results='markup'}
+
+
+alc_chisq_subset = subset(alc_consump)
+alc_chisq_subset$goout <- factor(alc_chisq_subset$goout)
+alc_chisq_subset$Walc <- factor(alc_chisq_subset$Walc)
+contable = table(alc_chisq_subset$goout, alc_chisq_subset$Walc)
+# contable # the contingency table
+xkabledply(contable, title="Contingency table for Go Out (habit) vs Weekend Alcohol Consumption (level)")
+
+
+library("gplots")
+
+balloonplot(t(contable), main ="Graph of contable for Go Out vs Weekend Alcohol Consumption", xlab ="Walc", ylab="goout",
+            label = FALSE, show.margins = FALSE)
+```
+
+
+```{r}
+chitest = chisq.test(contable)
+chitest
+```
+
+```{r, results="markup"}
+xkabledply(chitest$expected, title = "Cross table for the expected frequencies between Go Out (habit) vs Weekend Alcohol Consumption (level)")
+```
+
+As a result, the $\chi^2$ value of the test is `r chitest$statistic`, 
+while the p-value is `r chitest$p.value`.
+Since the *p value* is less than the alpha, the result of the test means that we can reject the Null hypothesis and adopt the Alternative hypothesis, in which goout (Go out) and Walc (Weekend Alcohol Consumption) **are not independent**. This means there is a correlation between both of them.
+
+
+**Conclusions**
+
+* Out of 24 people who go out very few times (level 1), only 2 have high levels of weekend alcohol consumption (level 5).
+* Out of 53 people that go out very often (level 5), 29 (more than half) have high levels of weekend alcohol consumption (level 5).
+* Out of 256 people that go out very few or moderately (from level 1 to 3), only 21 have high levels of weekend alcohol consumption (4 to 5).
+
+### *goout and Dalc* 
+Secondly, we investigated if there was a correlation between the **frequency of going out (goout)** and the **frequency of workday alcohol consumption (Dalc)**. We desired to answer if participants that go very often (level 5) would have higher workday alcohol consumption.
+
+```{r question2, results='markup'}
+
+alc_chisq_subset$Dalc <- factor(alc_chisq_subset$Dalc)
+contableWorkday = table(alc_chisq_subset$goout, alc_chisq_subset$Dalc)
+# contable # the contingency table
+xkabledply(contableWorkday, title="Contingency table for Go Out (habit) vs Workday Alcohol Consumption (level)")
+
+
+library("gplots")
+
+balloonplot(t(contableWorkday), main ="Graph of contable for Go Out vs Workday Alcohol Consumption", xlab ="Dalc", ylab="goout",
+            label = FALSE, show.margins = FALSE)
+```
+
+
+```{r}
+chitestWorkday = chisq.test(contableWorkday)
+chitestWorkday
+```
+
+```{r, results="markup"}
+xkabledply(chitestWorkday$expected, title = "Cross table for the expected frequencies between Go Out (habit) vs Workday Alcohol Consumption (level)")
+```
+
+As a result, the $\chi^2$ value of the test is `r chitestWorkday$statistic`, 
+while the p-value is `r chitestWorkday$p.value`.
+Since the *p value* is less than the alpha, the result of the test means that we can reject the Null hypothesis and adopt the Alternative hypothesis, in which goout (Go out) and Dalc (Workday Alcohol Consumption) **are not independent**. This signifies there is a correlation between them.
+
+**Conclusions**
+
+* Out of 53 people that go out very often (level 5), 15 have high level of workday alcohol consumption (levels 4 to 5), whereas out of people that rarely go out (level 1), 0 have high level of workday alcohol consumption.
+* Out of 130 people that go out moderately (level 3), 127 have low to moderate workday alcohol consumption (levels 1 to 3). 
+* Overall, workday alcohol consumption is low. Out of 395 people, 18 drink a high amount (levels 4 to 5).
+
+### *Correlation plot* 
+To answer our question on which variables have the largest impact on **workday alcohol consumption (Dalc)** habits of teenagers, we produced a *correlation plot*.
+
+```{r subset}
+alcsubset = subset(alc_consump, Dalc==5)
+alcsubset = subset(alc_consump, select = -c(school,famsup, sex,address,famsize,Pstatus,Mjob, Fjob, reason, guardian, schoolsup, paid, activities, nursery, higher, internet, romantic))
+alc_consump= subset(alc_consump, select = -c(school,famsup, sex,address,famsize,Pstatus,Mjob, Fjob, reason, guardian, schoolsup, paid, activities, nursery, higher, internet, romantic))
+```
+
+
+```{r}
+cor_alc_consump <- cor(alcsubset, method = "pearson")
+corrplot(cor_alc_consump, method = "circle")
+
+```
+
+
+
+**Conclusions**
+
+The correlation plot revealed that `Walc`, `freetime` and `goout` were the most positively correlated variables with Dalc.
+Therefore, we chose those variables to build our model.
+
+### *Linear Model* 
+**Which variables have the largest impact on workday alcohol consumption (Dalc) habits of teenagers?**
+
+```{r, results='markup'}
+alc_lm = lm(Dalc ~ freetime + goout + Walc, data = alc_consump)
+alc_lm
+alc_lm_sum <- summary(alc_lm)
+alc_lm_sum
+xkabledply(alc_lm)
+xkablevif(alc_lm)
+```
+
+The model `r format(alc_lm$call$formula)` yields an $r^2$
+value of `r format( alc_lm_sum$r.squared, digits = 3)`.
+
+
+**Conclusions**
+
+Based on the linear model, we can conclude that weekend alcohol consumption has the greatest effect on workday alcohol consumption. With every increase in the level of Walc, Dalc increases by an estimate of 0.4468. On the other hand, goout, what we hypothesized to have a positive effect on Dalc, actually has a very small effect on Dalc. The variable goout causes Dalc to decrease by -0.0321 for every level. It heavily fluctuates as well, given that the standard error is 0.0346, making it possible for a slight increase in Dalc for each level of going out. Finally, our third variable freetime is seen to have a mild positive effect on Walc, seeing that for every increase in freetime, there is 0.114 of an increase in Dalc.
+
+According to the contingency table and the results from the linear model, it's likely that going out occurs closer to the weekend, with smaller overlap with the workdays. 
+
+
+### *Social Good* 
+
+This analysis can be used in many different ways to support student communities and better their **alcohol consumption habits**. We hope to use this data as a way to help schools develop programs that promote awareness of alcohol consumption. With appropriate and considerate policies regarding drinking habits among teenagers, the student's **health and well-being** can increase, as well as their **academic performance**. We also look to use this analysis to spread awareness to students about the effects that alcohol consumption may have on their academic standings and how they can limit the two having an effect on each other.
+ 
+A few specific plans to take action would be:
+ 
+1. Educate students about the risks and consequences of excessive alcohol consumption, including the potential for addiction, accidents, injuries, and negative impacts on mental and physical health.
+2. Encourage students to make informed and responsible choices about alcohol consumption by providing resources and information on safe drinking practices and alternatives to alcohol.
+3. Promote a culture of moderation and responsible decision-making by hosting events and activities that do not involve alcohol, or that offer low or non-alcoholic options.
+4. Support students who may be struggling with alcohol use by providing resources such as counseling, support groups, and referrals to treatment programs.
+5. Collaborate with local law enforcement and other organizations to ensure that students are aware of and adhere to relevant laws and regulations related to alcohol consumption.
+This analysis can be used in many different ways to support student communities and better their **alcohol consumption habits**. We hope to use this data as a way to help schools develop programs that promote awareness of alcohol consumption. With appropriate and considerate policies regarding drinking habits among teenagers, the student's **health and well-being** can increase, as well as their **academic performance**. We also look to use this analysis to spread awareness to students about the effects that alcohol consumption may have on their academic standings and how they can limit the two having an effect on each other.
