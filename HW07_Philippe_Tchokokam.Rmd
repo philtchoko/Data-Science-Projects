@@ -1,0 +1,223 @@
+---
+title: "Logit Regression"
+author: "GWU DATS 1001 Data Science for ALL - Edwin Lo"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    code_folding: hide
+    number_sections: false
+    toc: yes
+    toc_depth: 3
+    toc_float: yes
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+---
+
+```{r init, include=FALSE}
+# some of common options (and the defaults) are: 
+# include=T, eval=T, echo=T, results='hide'/'asis'/'markup',..., collapse=F, warning=T, message=T, error=T, cache=T, fig.width=6, fig.height=4, fig.dim=c(6,4) #inches, fig.align='left'/'center','right', 
+library(ezids)
+# knitr::opts_chunk$set(warning = F, results = "markup", message = F)
+knitr::opts_chunk$set(warning = F, results = "hide", message = F)
+options(scientific=T, digits = 3) 
+# options(scipen=9, digits = 3) 
+# ‘scipen’: integer. A penalty to be applied when deciding to print numeric values in fixed or exponential notation.  Positive values bias towards fixed and negative towards scientific notation: fixed notation will be preferred unless it is more than ‘scipen’ digits wider.
+# use scipen=999 to prevent scientific notation at all times
+```
+
+# HW Assignment - Logit Regression
+
+We have the historic Titanic dataset to study here. You can use `Titanic` on api.regression.fit
+for the dataset, or if given, from local file `Titanic.csv`.  
+The variables in the dataset are:  
+
+* `survival`: Survival,	0 = No, 1 = Yes
+* `pclass`: Ticket class, 1 = 1st, 2 = 2nd, 3 = 3rd
+* `sex`: Gender / Sex
+* `age`: Age in years
+* `sibsp`: # of siblings / spouses on the Titanic
+* `parch`: # of parents / children on the Titanic
+* `ticket`: Ticket number (for superstitious ones)
+* `fare`: Passenger fare
+* `embarked`: Port of Embarkment	C: Cherbourg, Q: Queenstown, S: Southampton
+
+## Titanic Tragedy Dataset  
+
+### Question 1
+
+**Import the dataset into R**  
+Import the dataset into R, and call it titanic. 
+On api.regression.fit, you can load the dataset by the name "Titanic". 
+What is the percentage of survived? And the percentage of dead?  
+This (the higher of the two percentages) will serve as the null model 
+baseline accuracy benchmark.\ 
+Note: there are many ways you can find percentages/proportions in R. Try some 
+simple googling. It's a skill that everyone should master in today's world. 
+Since the `survived` column is coded here as integer (numeric), you can also 
+ find the sum of all the ones easily.  
+
+```{r results='markup'}
+# titanic <- data.frame(read.csv("Titanic.csv"))
+library(ezids)
+titanic = api_rfit("Titanic")
+# to-be-continued...
+library( dplyr )
+titanic %>% 
+    group_by( survived ) %>% 
+    summarise( percent = 100 * n() / nrow( titanic ) )
+```
+According to the data, about 38% survived while 62% died.
+
+
+
+### Question 2  
+**Clean up and prep**  
+If we were to use `sibsp` and `parch` in our analysis, even though they are legitimately ratio level variables, we might not expect doubling the number of siblings necessarily double the effects on survival. For this reason, we should change these two variables to factor levels. 
+What other ones should be converted as factors?
+
+For this same purpose, we should change sex, survived, pclass, and embarked into factors.
+
+```{r results='markup'}
+titanic$sex <- factor(titanic$sex)
+titanic$survived <- factor(titanic$survived)
+titanic$pclass <- factor(titanic$pclass)
+titanic$embarked <- factor(titanic$embarked)
+
+```
+
+## Pre-logistic Regression
+
+### Question 3  
+**Survival and age**  
+Before using our newly learned technique with logistic regression, let’s go old school, and use some prior knowledge to try find an answer. Does the data support that `age` has an effect on `survived`?\  
+Hint: With `age` a numerical variable and `survived` categorical with only 2 levels, 
+what kind of test is appropriate? Obtain two subsets with `survived`=='0' and 
+`survived`=='1' to run the test.
+
+```{r results='markup'}
+survivedsubset <- subset(titanic, survived == 1)
+deadsubset <- subset(titanic, survived == 0)
+survivalttest <- t.test(survivedsubset$age, deadsubset$age)
+
+survivalttest
+```
+
+The data does not support that age has an effect on survival.
+
+### Question 4  
+**Survival and gender**  
+Similarly, does the data support `sex` has an effect on `survived`?\  
+Note: what type of variables are `sex` and `survived`? What kind of test we 
+should run?
+
+
+```{r results='markup'}
+sexsurvival_chisq <- chisq.test(titanic$survived, titanic$sex)
+
+sexsurvival_chisq
+```
+
+The data supports that sex has an effect on survival. Sex and survived are both categorical variables. A test that we should run for these variables is a chi-squared test.
+
+
+### Question 5   
+**Survival and pclass**  
+Another big question is, does the data support Ticket class `pclass` has an 
+effect on `survived`? Again, what types of variables we have now, and 
+what test should we use?
+
+```{r}
+
+chisq_pclass = chisq.test(titanic$survived, titanic$pclass)
+chisq_pclass
+```
+
+P-Value < 2.2e-16
+The data also supports that class has an effect on survival.
+
+## Logistic Regression
+
+### Question 6 (solved)  
+**Survival and age + pclass**  
+Now let us build a logit model with `age + pclass` as predictors, and analyze the results.\ 
+Calculate the exponential of the coefficients to see the growth or decay factors 
+due to each variable or level of variables (if categorical).
+Does the model 
+show `age` improves or hurts survival rate? What about `pclass`?
+
+```{r}
+# these are not knitted out as html. Just for checking
+titan_logit1 <- glm(survived ~ age + pclass, data = titanic, binomial(link = "logit"))
+sum_titan_logit1 = summary(titan_logit1)
+sum_titan_logit1
+factors_titan_logit1 = exp(coef(titan_logit1))  # The exponential coefficients gives the growth or decay factor on the odds ratio (p/q) or survival.
+factors_titan_logit1
+
+## CIs using profiled log-likelihood
+confint(titan_logit1)
+## CIs using standard errors
+confint.default(titan_logit1)
+```
+
+All of the coefficients are statistically significant at the $\alpha$ level of 0.05.  
+
+The exponential of the coefficients have the values\  
+```{r results='markup'}
+xkabledply(titan_logit1)
+xkabledply(data.frame(factors_titan_logit1), wide = TRUE, title = "Exponential( coefficients )")
+```
+
+Age negatively correlate with probability of survival. For every one unit increase in `age`, the odds (p/q, not p) of surviving changes by a factor of `r factors_titan_logit1['age']`.  
+
+For `pclass` 1, the chance of survival is highest. It changes by a factor of `r factors_titan_logit1['pclass2']` if become `pclass`=2, and by a factor of `r factors_titan_logit1['pclass3']`  if `pclass` becomes 3 (compared to 1).  
+
+
+### Question 7  
+**Add gender/sex as regressor**  
+Can we improve the model? Let us also throw in `sex` as a predictor. 
+How’s the model now? Again use the exponential of coefficients to explain the effects.
+
+```{r results='markup'}
+titan_logit2 <- glm(survived ~ age + pclass + sex, data = titanic, binomial(link = "logit"))
+sum_titan_logit2 = summary(titan_logit2)
+sum_titan_logit2
+factors_titan_logit2 = exp(coef(titan_logit2)) 
+
+factors_titan_logit2
+confint(titan_logit2)
+
+```
+### Question 8  
+**Sample Predictions**  
+According to the last model, what is the chance of survival for a female, age 10, second class passenger? And a male, age 20, first class passenger?\ 
+
+Let us first create a couple rows of new data, so that we can use 
+the `predict()` function to answer this.
+
+```{r}
+ourNewDataFrame = data.frame( age=c(10,20), sex=c("female","male"), pclass=c("2","1") )
+```
+
+Now, let us use the `predict()` function:\   
+
+...continue
+
+```{r}
+sample_prediction = predict(titan_logit2, newdata = ourNewDataFrame, type = 'response')
+
+sample_prediction
+```
+
+The chance of survival for a 10 year old female second class passenger was about 85% whereas the chance of survival of a 20 year old male first class passenger was about 46%.
+## Interpretation  
+
+### Question 9  
+*Summary*  
+With all the results you obtained above, how would you present a high-level summary of the findings? Are the results surprising or expected? You might need to dig a little deeper than just the numbers, the test results/p-values, and the model statistics. This is a question about who we are, … in the face of death. 
+
+  These results aren't surprising. When facing death it would seem reasonable for children and women to be given priority on lifeboats/being evacuated to safety. It can also be assumed that people in first class (people who are already given luxury service) will most likely have more priority as well. Based on our results, we can see that the highest chance of survival is given to those who are women, young in age, and first class.
+
+
+
+
